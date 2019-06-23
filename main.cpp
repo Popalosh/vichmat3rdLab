@@ -7,18 +7,12 @@ double Exact(double t){
   return 1.0/t;
 }
 
-// double eulerFun(double x, double y, double t){
-//   double expT = exp(t);
-//   return (2.0 * x + expT * y)/(expT + 1.0);
-// }
-
 void F(double t, double *y, double *dy){
   dy[0] = y[1];
   dy[1] = -(t*t*t*y[1] + (t*t - 2.0)*y[0])/t*t;
 }
 
-double PreciseY0(double t)
-{
+double PreciseY0(double t) {
 	return Exact(t);
 }
 
@@ -26,6 +20,36 @@ double PreciseY0(double t)
 double PreciseY1(double t) {
 	return -1 * Exact(t);
 }
+
+void rkf3(double t0, double t1, double *x, double h) {
+	double k1[2], k2[2], k3[2], dx[2], xk[2];
+	printf(" %.2f % 15.8f % 15.8f % 15.8f % 15.8f\n",t0, x[0], x[1], fabs(PreciseY0(t0) - x[0]), fabs(PreciseY1(t0) - x[1]));
+
+	for (; fabs(t0 - t1) > 0.01; ) {
+		F(t0, x, dx);
+		k1[0] = h * dx[0];
+		k1[1] = h * dx[1];
+		xk[0] = x[0] + k1[0] / 2;
+		xk[1] = x[1] + k1[1] / 2;
+
+		F(t0 + h / 2, xk, dx);
+		k2[0] = h * dx[0];
+		k2[1] = h * dx[1];
+		xk[0] = x[0] + 2 * k2[0] - k1[0];
+		xk[1] = x[1] + 2 * k2[1] - k1[1];
+
+		F(t0 + h, xk, dx);
+		k3[0] = h * dx[0];
+		k3[1] = h * dx[1];
+		x[0] += (k1[0] + 4 * k2[0] + k3[0]) / 6;
+		x[1] += (k1[1] + 4 * k2[1] + k3[1]) / 6;
+		t0 += h;
+
+		printf(" %.2f % 15.8f % 15.8f % 15.8f % 15.8f\n",
+		t0, x[0], x[1], fabs(PreciseY0(t0) - x[0]), fabs(PreciseY1(t0) - x[1]));
+	}
+}
+
 
 
 void adams (void (*func) (double t, double *y, double *dy), int NEQN, double y_last[], double
@@ -103,7 +127,6 @@ int main(){
 	N = 2;
 
 	exact[0] = y;
-	// euler[0] = y;
 	rkf45[0] = y;
 
 	Y[0] = y;
@@ -114,21 +137,12 @@ int main(){
 	for (int index = 1; index < arraySize; index++){
 		exact[index] = Exact(t+h*index);
 
-		// Euler(t+h*index, h, x, euler[index - 1], res);
-		// euler[index] = res[0];
-		// x = res[1];
-
 		T = t+h*(index - 1);
 		TOUT = T+h;
 		
 		RKF45(F, N, Y, &T, &TOUT, &RELERR, &ABSERR, &IFLAG, WORK, IWORK);
 		rkf45[index] = Y[0];
 		printf(" %u ", IFLAG);
-
-		// eulerEps[index] = abs(exact[index] - euler[index]);
-		// globalEulerEps += eulerEps[index];
-		// rkf45Eps[index] = abs(exact[index] - rkf45[index]);
-		// globalRkf45Eps += rkf45Eps[index];
 	}
 
 	printf("\nT\tExact\t\tRKF45\n");
@@ -136,17 +150,16 @@ int main(){
 	for (int index = 0; index < arraySize; index++){
 		printf("%.2f\t%.7f\t%.7f\n",t+h*index, exact[index], rkf45[index]);
 	}
-  
-	// printf("\nT\tEXACT\t\tEULER\t\tEULER_EPS\tRKF45\t\tRKF45_EPS\n");
 
-	// for (int index = 0; index < arraySize; index++){
-	// 	printf("%.2f\t%.7f\t%.7f\t%.7f\t%.7f\t%.20f\n", t+h*index,
-	// 	 exact[index],
-	// 	 euler[index], eulerEps[index],
-	// 	 rkf45[index], rkf45Eps[index]);
-	// }
+	printf("\n RKF3\n");
 
-	// printf("\nGLOBAL EPS\': EULER = %.7f,\t RKF45 = %.15f", globalEulerEps, globalRkf45Eps);
+	Y[0] = y;
+	Y[1] = x;
+
+	printf(" t 		y 		y' 		eps1		eps2 \n");
+	rkf3(1, 2, Y, h);
+
+
 	printf("\n 		Adams\n");
 
 	printf(" t 		y 		y' 		eps1		eps2 \n");
